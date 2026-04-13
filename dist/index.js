@@ -31,22 +31,42 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
+const fs = __importStar(__nccwpck_require__(7147));
 const axios_1 = __importStar(__nccwpck_require__(8757));
 const xcode_selector_1 = __nccwpck_require__(8865);
 async function validateSubscription() {
-    var _a;
-    const API_URL = `https://agent.api.stepsecurity.io/v1/github/${process.env.GITHUB_REPOSITORY}/actions/subscription`;
+    const eventPath = process.env.GITHUB_EVENT_PATH;
+    let repoPrivate;
+    if (eventPath && fs.existsSync(eventPath)) {
+        const eventData = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+        repoPrivate = eventData?.repository?.private;
+    }
+    const upstream = 'maxim-lobanov/setup-xcode';
+    const action = process.env.GITHUB_ACTION_REPOSITORY;
+    const docsUrl = 'https://docs.stepsecurity.io/actions/stepsecurity-maintained-actions';
+    core.info('');
+    core.info('\u001b[1;36mStepSecurity Maintained Action\u001b[0m');
+    core.info(`Secure drop-in replacement for ${upstream}`);
+    if (repoPrivate === false)
+        core.info('\u001b[32m\u2713 Free for public repositories\u001b[0m');
+    core.info(`\u001b[36mLearn more:\u001b[0m ${docsUrl}`);
+    core.info('');
+    if (repoPrivate === false)
+        return;
+    const serverUrl = process.env.GITHUB_SERVER_URL || 'https://github.com';
+    const body = { action: action || '' };
+    if (serverUrl !== 'https://github.com')
+        body.ghes_server = serverUrl;
     try {
-        await axios_1.default.get(API_URL, { timeout: 3000 });
+        await axios_1.default.post(`https://agent.api.stepsecurity.io/v1/github/${process.env.GITHUB_REPOSITORY}/actions/maintained-actions-subscription`, body, { timeout: 3000 });
     }
     catch (error) {
-        if ((0, axios_1.isAxiosError)(error) && ((_a = error.response) === null || _a === void 0 ? void 0 : _a.status) === 403) {
-            core.error("Subscription is not valid. Reach out to support@stepsecurity.io");
+        if ((0, axios_1.isAxiosError)(error) && error.response?.status === 403) {
+            core.error(`\u001b[1;31mThis action requires a StepSecurity subscription for private repositories.\u001b[0m`);
+            core.error(`\u001b[31mLearn how to enable a subscription: ${docsUrl}\u001b[0m`);
             process.exit(1);
         }
-        else {
-            core.info("Timeout or API not reachable. Continuing to next step.");
-        }
+        core.info('Timeout or API not reachable. Continuing to next step.');
     }
 }
 async function run() {
@@ -127,7 +147,6 @@ class XcodeSelector {
         return xcodeVersions.sort((first, second) => semver.compare(second.version, first.version));
     }
     findVersion(versionSpec) {
-        var _a;
         const availableVersions = this.getAllVersions();
         if (availableVersions.length === 0) {
             return null;
@@ -144,9 +163,9 @@ class XcodeSelector {
             isStable = false;
             versionSpec = versionSpec.slice(0, -betaSuffix.length);
         }
-        return ((_a = availableVersions
+        return (availableVersions
             .filter(ver => ver.stable === isStable)
-            .find(ver => semver.satisfies(ver.version, versionSpec))) !== null && _a !== void 0 ? _a : null);
+            .find(ver => semver.satisfies(ver.version, versionSpec)) ?? null);
     }
     setVersion(xcodeVersion) {
         if (!fs.existsSync(xcodeVersion.path)) {
@@ -219,9 +238,8 @@ const getInstalledXcodeApps = () => {
 };
 exports.getInstalledXcodeApps = getInstalledXcodeApps;
 const getXcodeReleaseType = (xcodeRootPath) => {
-    var _a, _b;
     const licenseInfo = (0, exports.parsePlistFile)(path.join(xcodeRootPath, "Contents", "Resources", "LicenseInfo.plist"));
-    const licenseType = (_b = (_a = licenseInfo === null || licenseInfo === void 0 ? void 0 : licenseInfo.licenseType) === null || _a === void 0 ? void 0 : _a.toString()) === null || _b === void 0 ? void 0 : _b.toLowerCase();
+    const licenseType = licenseInfo?.licenseType?.toString()?.toLowerCase();
     if (!licenseType) {
         core.debug("Unable to determine Xcode version type based on license plist");
         core.debug("Xcode License plist doesn't contain 'licenseType' property");
@@ -231,10 +249,9 @@ const getXcodeReleaseType = (xcodeRootPath) => {
 };
 exports.getXcodeReleaseType = getXcodeReleaseType;
 const getXcodeVersionInfo = (xcodeRootPath) => {
-    var _a, _b;
     const versionInfo = (0, exports.parsePlistFile)(path.join(xcodeRootPath, "Contents", "version.plist"));
-    const xcodeVersion = semver.coerce((_a = versionInfo === null || versionInfo === void 0 ? void 0 : versionInfo.CFBundleShortVersionString) === null || _a === void 0 ? void 0 : _a.toString());
-    const xcodeBuildNumber = (_b = versionInfo === null || versionInfo === void 0 ? void 0 : versionInfo.ProductBuildVersion) === null || _b === void 0 ? void 0 : _b.toString();
+    const xcodeVersion = semver.coerce(versionInfo?.CFBundleShortVersionString?.toString());
+    const xcodeBuildNumber = versionInfo?.ProductBuildVersion?.toString();
     if (!xcodeVersion || !semver.valid(xcodeVersion)) {
         core.debug(`Unable to retrieve Xcode version info on path '${xcodeRootPath}'`);
         return null;
