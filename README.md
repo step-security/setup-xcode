@@ -20,7 +20,7 @@ The list of all available versions can be found in [runner-images](https://githu
 # Usage
 
 Set the latest stable Xcode version:
-```
+```yaml
 jobs:
   build:
     runs-on: macos-latest
@@ -31,7 +31,7 @@ jobs:
 ```
 
 Set the latest Xcode version including beta releases:
-```
+```yaml
 jobs:
   build:
     runs-on: macos-latest
@@ -42,7 +42,7 @@ jobs:
 ```
 
 Set the specific stable version of Xcode:
-```
+```yaml
 jobs:
   build:
     runs-on: macos-15
@@ -53,7 +53,7 @@ jobs:
 ```
 
 Set a specific Xcode version on `macos-26`:
-```
+```yaml
 jobs:
   build:
     runs-on: macos-26
